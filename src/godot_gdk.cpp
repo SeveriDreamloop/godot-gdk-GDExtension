@@ -98,7 +98,7 @@ void CALLBACK godot_gdk::Identity_TrySignInDefaultUserSilently_Callback(_In_ XAs
 	}
 
 	if (callback && callback->is_valid()) {
-		callback->call();
+		callback->call_deferred();
 	}
 }
 

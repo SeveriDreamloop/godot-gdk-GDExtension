@@ -87,7 +87,7 @@ void gdk_achievements::GetAchievementsCallback(XAsyncBlock *asyncBlock) {
 
 void gdk_achievements::FinishGetAchievements(AchievementGatherer* gatherer) {
 	if (gatherer->Callback.is_valid()) {
-		gatherer->Callback.call(gatherer->RetrievedAchievements);
+		gatherer->Callback.call_deferred(gatherer->RetrievedAchievements);
 	}
 
 	delete gatherer;

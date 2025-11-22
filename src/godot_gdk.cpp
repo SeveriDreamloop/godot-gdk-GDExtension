@@ -38,16 +38,6 @@ int godot_gdk::InitializeGDK(godot::Callable cb) {
 		return hr;
 	}
 
-	hr = XTaskQueueCreate(
-		XTaskQueueDispatchMode::ThreadPool,
-		XTaskQueueDispatchMode::ThreadPool,
-		&queue);
-
-	if (!CheckResult(hr, "Successfully initialized Task Queue", "Failed to initialize Task Queue"))
-	{
-		return hr;
-	}
-
 
 	XblInitArgs xblArgs = {};
 	xblArgs.queue = queue;
@@ -58,6 +48,8 @@ int godot_gdk::InitializeGDK(godot::Callable cb) {
 	{
 		return hr;
 	}
+
+	queue = XblGetAsyncQueue();
 
 	hr = Identity_TrySignInDefaultUserSilently(queue);
 	CheckResult(hr, "Login successfully started", "Failed to start login");
@@ -126,6 +118,13 @@ XUserLocalId  godot_gdk::GetUserId() {
 
 XUserHandle godot_gdk::GetUserHandle() {
 	return xboxUserHandle;
+}
+
+XAsyncBlock* godot_gdk::CreateAsyncBlock() {
+	XAsyncBlock* asyncBlock = new XAsyncBlock();
+	XTaskQueueHandle queue_handle = godot_gdk::GetQueueHandle();
+	asyncBlock->queue = queue_handle;
+	return asyncBlock;
 }
 
 bool godot_gdk::CheckResult(HRESULT result, std::string succeedMessage, std::string errorMessage) {

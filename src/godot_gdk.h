@@ -38,5 +38,6 @@ public:
 
 	static XUserLocalId GetUserId();
 	static XUserHandle GetUserHandle();
+	static XAsyncBlock* godot_gdk::CreateAsyncBlock();
 	static bool CheckResult(HRESULT result, std::string succeedMessage, std::string errorMessage);
 };

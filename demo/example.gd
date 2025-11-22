@@ -1,6 +1,7 @@
 extends Node
 
 var example;
+var achievement;
 
 func _ready() -> void:
 	example = godot_gdk.new()
@@ -9,7 +10,7 @@ func _ready() -> void:
 func on_init_done() -> void:
 	print("callback invoked")
 	
-	var achievement = gdk_achievements.new()
+	achievement = gdk_achievements.new()
 	achievement.GetAchievements(get_achievements)
 	
 func get_achievements(achievements):
@@ -17,5 +18,9 @@ func get_achievements(achievements):
 	
 	for a in achievements:
 		print(a.name);
+	
+	achievement.UnlockAchievement(achievements[3].id)
+		
+	
 	
 	

@@ -19,18 +19,17 @@
 
 void gdk_achievements::_bind_methods() {
 	godot::ClassDB::bind_method(D_METHOD("GetAchievements", "callback"), &gdk_achievements::GetAchievements);
+	godot::ClassDB::bind_method(D_METHOD("UnlockAchievement", "achievementId"), &gdk_achievements::UnlockAchievement);
+	godot::ClassDB::bind_method(D_METHOD("SetAchievementPercentage", "achievementId", "percentage"), &gdk_achievements::SetAchievementPercentage);
 }
 
 void gdk_achievements::GetAchievements(godot::Callable callback) {
-	XAsyncBlock *asyncBlock = new XAsyncBlock();
-	XTaskQueueHandle queue_handle = godot_gdk::GetQueueHandle();
-	asyncBlock->queue = queue_handle;
+	XAsyncBlock* asyncBlock = godot_gdk::CreateAsyncBlock();
 
 	AchievementGatherer* gatherer = new AchievementGatherer();
 	gatherer->Callback = callback;
 
 	asyncBlock->context = gatherer;
-
 	asyncBlock->callback = GetAchievementsCallback;
 
 	XblContextHandle handle;
@@ -80,7 +79,10 @@ void gdk_achievements::GetAchievementsCallback(XAsyncBlock *asyncBlock) {
 		XblAchievementsResultGetNextAsync(resultHandle, 0, asyncBlock);
 	} else {
 		FinishGetAchievements(gatherer);
+		delete asyncBlock;
 	}
+
+	XblAchievementsResultCloseHandle(resultHandle);
 }
 
 void gdk_achievements::FinishGetAchievements(AchievementGatherer* gatherer) {
@@ -89,4 +91,28 @@ void gdk_achievements::FinishGetAchievements(AchievementGatherer* gatherer) {
 	}
 
 	delete gatherer;
+}
+
+void gdk_achievements::UnlockAchievement(godot::String achievementId) {
+	InternalSetAchievementPercentage(achievementId, 100, "Successfully unlocked achievement", "Failed to unlock achievement");
+}
+
+
+void gdk_achievements::SetAchievementPercentage(godot::String achievementId, uint32_t percentage) {
+	InternalSetAchievementPercentage(achievementId, percentage, "Successfully set achievement progress", "Failed to set achievement progress");
+}
+
+void gdk_achievements::InternalSetAchievementPercentage(godot::String achievementId, uint32_t percentage, const std::string &successMessage, const std::string &failMessage) {
+
+	XblContextHandle handle;
+
+	if (!godot_gdk::CreateContextHandle(&handle)) {
+		return;
+	}
+
+	XAsyncBlock* asyncBlock = godot_gdk::CreateAsyncBlock();
+
+	HRESULT result = XblAchievementsUpdateAchievementAsync(handle, godot_gdk::GetUserId().value, achievementId.utf8(), percentage, asyncBlock);
+
+	godot_gdk::CheckResult(result, successMessage, failMessage);
 }

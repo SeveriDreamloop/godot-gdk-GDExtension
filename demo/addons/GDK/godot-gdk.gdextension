@@ -1,0 +1,27 @@
+[configuration]
+
+entry_symbol = "init_gdk"
+compatibility_minimum = "4.5"
+reloadable = true
+
+[libraries]
+
+windows.debug.x86_64 = "res://addons/GDK/libs/windows/GDK.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://addons/GDK/libs/windows/GDK.windows.template_release.x86_64.dll"
+windows.editor.x86_64 = "res://addons/GDK/libs/windows/GDK.windows.editor.x86_64.dll"
+
+[dependencies]
+
+windows.release.x86_64 = {
+"libs/windows/libHttpClient.GDK.dll": "",
+"libs/windows/Microsoft.Xbox.Services.GDK.C.Thunks.dll": "",
+"libs/windows/XCurl.dll": "",
+"libs/windows/xgameruntime.thunks.dll": ""
+}
+
+windows.editor.x86_64 = {
+"libs/windows/libHttpClient.GDK.dll": "",
+"libs/windows/Microsoft.Xbox.Services.GDK.C.Thunks.dll": "",
+"libs/windows/XCurl.dll": "",
+"libs/windows/xgameruntime.thunks.dll": ""
+}

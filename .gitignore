@@ -60,3 +60,9 @@ compile_commands.json
 # Cmake
 cmake-build*
 CMakeUserPresets.json
+
+# Zed cache
+.zed
+
+# Generated files
+demo/addons/GDK/libs

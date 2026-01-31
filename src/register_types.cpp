@@ -6,6 +6,7 @@
 #include <godot_cpp/godot.hpp>
 
 #include "godot_gdk.h"
+#include "gdk_asyncblock.h"
 #include "gdk_achievement.h"
 #include "gdk_achievements.h"
 #include "gdk_game_save.h"
@@ -18,6 +19,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 		return;
 	}
 	GDREGISTER_CLASS(godot_gdk);
+	GDREGISTER_CLASS(gdk_asyncBlock);
 	GDREGISTER_CLASS(gdk_achievement);
 	GDREGISTER_CLASS(gdk_achievements);
 	GDREGISTER_CLASS(gdk_game_save);

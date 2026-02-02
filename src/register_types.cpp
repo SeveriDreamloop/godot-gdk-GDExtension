@@ -4,6 +4,7 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
+#include <classes/engine.hpp>
 
 #include "godot_gdk.h"
 #include "gdk_asyncblock.h"
@@ -12,6 +13,8 @@
 #include "gdk_game_save.h"
 
 using namespace godot;
+
+static GodotGDK* gdk = nullptr;
 
 void initialize_gdextension_types(ModuleInitializationLevel p_level)
 {
@@ -25,12 +28,19 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	GDREGISTER_CLASS(GDKGameSave);
 	GDREGISTER_CLASS(GDKGameSaveBlob);
 	GDREGISTER_CLASS(GDKGameSaveBlobInfo);
+
+	gdk = GodotGDK::get_singleton();
+	Engine::get_singleton()->register_singleton("GDK", gdk);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
+
+	Engine::get_singleton()->unregister_singleton("GDK");
+	memdelete(gdk);
+	gdk = nullptr;
 }
 
 extern "C"

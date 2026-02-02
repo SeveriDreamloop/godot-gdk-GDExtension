@@ -18,8 +18,28 @@ static XUserLocalId xboxUserId;
 static XUserHandle xboxUserHandle;
 static const char* SCID;
 
+GodotGDK* GodotGDK::_instance = nullptr;
+
 void GodotGDK::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("InitializeGDK", "callback", "SCID"), &GodotGDK::InitializeGDK);
+}
+
+void GodotGDK::_notification(int p_what) {
+	if (p_what == NOTIFICATION_PREDELETE) {
+		if (_initialized) {
+			XTaskQueueCloseHandle(queue);
+			XGameRuntimeUninitialize();
+		}
+	}
+}
+
+GodotGDK *GodotGDK::get_singleton() {
+	if (_instance) {
+		return _instance;
+	}
+
+	_instance = memnew(GodotGDK);
+	return _instance;
 }
 
 int GodotGDK::InitializeGDK(Callable cb, String scid) {

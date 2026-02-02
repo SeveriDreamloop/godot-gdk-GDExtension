@@ -19,19 +19,27 @@ class GodotGDK : public RefCounted {
 	GDCLASS(GodotGDK, RefCounted)
 
 private:
+	static GodotGDK* _instance;
+	bool _initialized = false;
+	XTaskQueueHandle _async_queue = nullptr;
+	
 	static HRESULT Identity_TrySignInDefaultUserSilently(XTaskQueueHandle asyncQueue, Callable cb);
 	static void Identity_TrySignInDefaultUserSilently_Callback(XAsyncBlock *asyncBlock);
 
 protected:
 	static void _bind_methods();
+	void _notification(int p_what);
 
 public:
+	static GodotGDK* get_singleton();
 	GodotGDK() = default;
 	~GodotGDK() override = default;
 
 	int InitializeGDK(Callable, String);
 	static bool CreateContextHandle(XblContextHandle* handle);
 	static XTaskQueueHandle GetQueueHandle();
+
+	
 
 	static XUserLocalId GetUserId();
 	static XUserHandle GetUserHandle();

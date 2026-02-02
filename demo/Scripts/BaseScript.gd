@@ -2,7 +2,6 @@ extends Node
 class_name BaseScript
 
 var currentNode:Control;
-var gdkObject:GodotGDK;
 @export var SCID:String
 
 static func buttonInfo(text:String, requiresSubMenu:bool, function:Callable, hasOutput:bool = false, inputs = []):
@@ -16,8 +15,7 @@ static func buttonInfo(text:String, requiresSubMenu:bool, function:Callable, has
 
 
 func _ready():
-	gdkObject = GodotGDK.new()
-	gdkObject.InitializeGDK(on_init_done, SCID)
+	GDK.InitializeGDK(on_init_done, SCID)
 
 	create_menu("MainMenu")
 	currentNode = $Control/MainMenu

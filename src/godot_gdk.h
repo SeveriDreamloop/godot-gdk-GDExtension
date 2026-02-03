@@ -35,6 +35,8 @@ public:
 	GodotGDK() = default;
 	~GodotGDK() override = default;
 
+	inline XTaskQueueHandle get_async_queue() { return _async_queue; }
+
 	int InitializeGDK(Callable, String);
 	static bool CreateContextHandle(XblContextHandle* handle);
 	static XTaskQueueHandle GetQueueHandle();

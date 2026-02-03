@@ -73,6 +73,7 @@ lib_path = [
 env.Append(LIBPATH=lib_path)
 
 env.Append(LINKFLAGS=[
+    "xgameruntime.lib",
     "xgameruntime.thunks.lib", 
     "Microsoft.Xbox.Services.GDK.C.Thunks.lib",
     "bcrypt.lib",

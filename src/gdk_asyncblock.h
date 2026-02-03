@@ -4,7 +4,7 @@
 #include <Windows.h>
 #include <XAsync.h>
 
-using namespace godot;
+namespace godot {
 
 class GDKAsyncBlock : public RefCounted {
     GDCLASS(GDKAsyncBlock, RefCounted);
@@ -24,3 +24,5 @@ public:
     void set_callback(XAsyncCompletionRoutine* callback);
     void emit(Dictionary data);
 };
+
+}

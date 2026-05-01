@@ -25,6 +25,9 @@ static func createInputInfo(inputType:InputType, input):
 
 func _ready():
 	GDK.InitializeGDK(on_init_done, SCID)
+	GDK.device_association_changed.connect(device_association_changed)
+	GDK.default_audio_endpoint_utf16_changed.connect(audio_endpoint_changed)
+	GDK.user_changed.connect(user_changed)
 	create_menu("MainMenu")
 	currentNode = $Control/MainMenu
 
@@ -131,3 +134,12 @@ func on_init_done() -> void:
 	var node = get_node("Control/Saves")
 	node.InitializeGameSave();
 	currentNode.visible = true;
+		
+func device_association_changed(id:PackedByteArray, old_user:GDKUser, new_user:GDKUser) -> void:
+	print("id: "+id.get_string_from_utf8()+"old user is null: " +str(old_user==null)+", new user: "+new_user.get_gamer_tag(GDKXUserGamertagComponent.Modern))
+	
+func user_changed(user:GDKUser, change_event:int) -> void:
+	print("user: "+user.get_gamer_tag(GDKXUserGamertagComponent.Modern)+"event: "+str(change_event))
+
+func audio_endpoint_changed(user:GDKUser, endpoint_kind:int, endpoint_id:String) -> void:
+	print("user: "+user.get_gamer_tag(GDKXUserGamertagComponent.Modern)+"kind: "+str(endpoint_kind)+", id: "+endpoint_id)

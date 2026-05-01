@@ -27,6 +27,12 @@ static void OnGameInviteReceived(void* context, const char* inviteUri);
 using namespace godot;
 
 GodotGDK* GodotGDK::_instance = nullptr;
+std::vector< std::function<void(Object*)>> GodotGDK::initialize_listeners;
+std::vector< std::function<void()>> GodotGDK::deinitialize_listeners;
+XTaskQueueRegistrationToken GodotGDK::_invite_token;
+XTaskQueueRegistrationToken GodotGDK::_user_change_token;
+XTaskQueueRegistrationToken GodotGDK::_device_association_change_token;
+XTaskQueueRegistrationToken GodotGDK::_default_audio_endpoint_change_token;
 
 void GDKXUserChangeEvent::_bind_methods() {
 	BIND_ENUM_CONSTANT(SignedInAgain);
@@ -35,53 +41,6 @@ void GDKXUserChangeEvent::_bind_methods() {
 	BIND_ENUM_CONSTANT(Gamertag);
 	BIND_ENUM_CONSTANT(GamerPicture);
 	BIND_ENUM_CONSTANT(Privileges);
-}
-
-void GodotGDK::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("InitializeGDK", "callback", "SCID"), &GodotGDK::InitializeGDK);
-
-	ClassDB::bind_method(D_METHOD("get_xbox_title_id"), &GodotGDK::get_xbox_title_id);
-	ClassDB::bind_method(D_METHOD("launch_new_game", "exe_path", "args", "default_user"), &GodotGDK::launch_new_game);
-	ClassDB::bind_method(D_METHOD("launch_restart_on_crash", "args"), &GodotGDK::launch_restart_on_crash);
-
-	ADD_SIGNAL(MethodInfo("game_invite_received", PropertyInfo(Variant::STRING, "invite_uri")));
-	ADD_SIGNAL(MethodInfo("user_changed", 
-				PropertyInfo(Variant::OBJECT, "user", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "GDKUser"),
-				PropertyInfo(Variant::INT, "change_event", PROPERTY_HINT_ENUM, "SignedInAgain,SigningOut,SignedOut,Gamertag,GamerPicture,Privileges", PROPERTY_USAGE_DEFAULT, "GDKXUserChangeEvent::Enum")));
-	ADD_SIGNAL(MethodInfo("device_association_changed", 
-				PropertyInfo(Variant::PACKED_BYTE_ARRAY, "device_id"),
-				PropertyInfo(Variant::OBJECT, "old_user", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "GDKUser"),
-				PropertyInfo(Variant::OBJECT, "new_user", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "GDKUser")));
-	ADD_SIGNAL(MethodInfo("default_audio_endpoint_utf16_changed",
-				PropertyInfo(Variant::OBJECT, "user", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "GDKUser"),
-				PropertyInfo(Variant::INT, "endpoint_kind", PROPERTY_HINT_ENUM, "CommunicationRender,CommunicationCapture", PROPERTY_USAGE_DEFAULT, "GDKXUserDefaultAudioEndpointKind::Enum"),
-				PropertyInfo(Variant::STRING, "endpoint_id")));
-}
-
-void GodotGDK::_notification(int p_what) {
-	if (p_what == NOTIFICATION_PREDELETE) {
-		if (_initialized) {
-			if (_invite_registered) {
-				XGameInviteUnregisterForEvent(_invite_token, false);
-				_invite_registered = false;
-			}
-
-			XUserUnregisterForChangeEvent(_user_change_token, false);
-			XUserUnregisterForDeviceAssociationChanged(_device_association_change_token, false);
-			XUserUnregisterForDefaultAudioEndpointUtf16Changed(_default_audio_endpoint_change_token, false);
-			XTaskQueueCloseHandle(queue);
-			XGameRuntimeUninitialize();
-		}
-	}
-}
-
-GodotGDK *GodotGDK::get_singleton() {
-	if (_instance) {
-		return _instance;
-	}
-
-	_instance = memnew(GodotGDK);
-	return _instance;
 }
 
 void UserChangeEventCallback(void* context, XUserLocalId userLocalId, XUserChangeEvent event) {
@@ -93,7 +52,7 @@ void UserChangeEventCallback(void* context, XUserLocalId userLocalId, XUserChang
 	Ref<GDKUser> user = GDKUser::create(userHandle);
 	GDKXUserChangeEvent::Enum event_enum = static_cast<GDKXUserChangeEvent::Enum>(event);
 
-	GodotGDK* self = static_cast<GodotGDK*>(context);
+	Object* self = static_cast<Object*>(context);
 	self->call_deferred("emit_signal", "user_changed", user, event_enum);
 }
 
@@ -119,7 +78,7 @@ void DeviceAssociationChangeCallback(void* context, const XUserDeviceAssociation
 		newUser = GDKUser::create(newUserHandle);
 	}
 
-	GodotGDK* self = static_cast<GodotGDK*>(context);
+	Object* self = static_cast<Object*>(context);
 	self->call_deferred("emit_signal", "device_association_changed", device_id, oldUser, newUser);
 }
 
@@ -132,8 +91,78 @@ void DefaultAudioEndpointUtf16ChangeCallback(void* context, XUserLocalId userLoc
 	GDKXUserDefaultAudioEndpointKind::Enum endpoint_enum = static_cast<GDKXUserDefaultAudioEndpointKind::Enum>(endpointKind);
 	String endpoint_id = String(endpointIdUtf16);
 
-	GodotGDK* self = static_cast<GodotGDK*>(context);
+	Object* self = static_cast<Object*>(context);
 	self->call_deferred("emit_signal", "default_audio_endpoint_utf16_changed", GDKUser::create(userHandle), endpoint_enum, endpoint_id);
+}
+
+void GodotGDK::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("InitializeGDK", "callback", "SCID"), &GodotGDK::InitializeGDK);
+
+	ClassDB::bind_method(D_METHOD("get_xbox_title_id"), &GodotGDK::get_xbox_title_id);
+	ClassDB::bind_method(D_METHOD("launch_new_game", "exe_path", "args", "default_user"), &GodotGDK::launch_new_game);
+	ClassDB::bind_method(D_METHOD("launch_restart_on_crash", "args"), &GodotGDK::launch_restart_on_crash);
+
+	ADD_SIGNAL(MethodInfo("game_invite_received", PropertyInfo(Variant::STRING, "invite_uri")));
+	ADD_SIGNAL(MethodInfo("user_changed",
+				PropertyInfo(Variant::OBJECT, "user", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "GDKUser"),
+				PropertyInfo(Variant::INT, "change_event", PROPERTY_HINT_ENUM, "SignedInAgain,SigningOut,SignedOut,Gamertag,GamerPicture,Privileges", PROPERTY_USAGE_DEFAULT, "GDKXUserChangeEvent::Enum")));
+	ADD_SIGNAL(MethodInfo("device_association_changed",
+				PropertyInfo(Variant::PACKED_BYTE_ARRAY, "device_id"),
+				PropertyInfo(Variant::OBJECT, "old_user", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "GDKUser"),
+				PropertyInfo(Variant::OBJECT, "new_user", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "GDKUser")));
+	ADD_SIGNAL(MethodInfo("default_audio_endpoint_utf16_changed",
+				PropertyInfo(Variant::OBJECT, "user", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "GDKUser"),
+				PropertyInfo(Variant::INT, "endpoint_kind", PROPERTY_HINT_ENUM, "CommunicationRender,CommunicationCapture", PROPERTY_USAGE_DEFAULT, "GDKXUserDefaultAudioEndpointKind::Enum"),
+				PropertyInfo(Variant::STRING, "endpoint_id")));
+
+	initialize_listeners.push_back(xgame_invite_register_for_event);
+	deinitialize_listeners.push_back(xgame_invite_unregister_for_event);
+
+	initialize_listeners.push_back([](Object* node) {
+		HRESULT hr = XUserRegisterForChangeEvent(queue, node, &UserChangeEventCallback, &_user_change_token);
+		CheckResult(hr, "User change event registered", "Failed to register user change event");
+	});
+	deinitialize_listeners.push_back([] {
+		XUserUnregisterForChangeEvent(_user_change_token, false);
+	});
+
+	initialize_listeners.push_back([](Object* node) {
+		HRESULT hr = XUserRegisterForDeviceAssociationChanged(queue, node, &DeviceAssociationChangeCallback, &_device_association_change_token);
+		CheckResult(hr, "Device association change event registered", "Failed to register device association change event");
+	});
+	deinitialize_listeners.push_back([] {
+			XUserUnregisterForDeviceAssociationChanged(_device_association_change_token, false);
+	});
+
+	initialize_listeners.push_back([](Object* node) {
+		HRESULT hr = XUserRegisterForDefaultAudioEndpointUtf16Changed(queue, node, &DefaultAudioEndpointUtf16ChangeCallback, &_default_audio_endpoint_change_token);
+		CheckResult(hr, "Default audio endpoint change event registered", "Failed to register default audio endpoint change event");
+	});
+	deinitialize_listeners.push_back([] {
+			XUserUnregisterForDefaultAudioEndpointUtf16Changed(_default_audio_endpoint_change_token, false);
+	});
+}
+
+void GodotGDK::_notification(int p_what) {
+	if (p_what == NOTIFICATION_PREDELETE) {
+		if (_initialized) {
+			for (std::function<void()> deinit_function : deinitialize_listeners) {
+				deinit_function();
+			}
+
+			XTaskQueueCloseHandle(queue);
+			XGameRuntimeUninitialize();
+		}
+	}
+}
+
+GodotGDK *GodotGDK::get_singleton() {
+	if (_instance) {
+		return _instance;
+	}
+
+	_instance = memnew(GodotGDK);
+	return _instance;
 }
 
 int GodotGDK::InitializeGDK(Callable cb, String scid) {
@@ -157,19 +186,9 @@ int GodotGDK::InitializeGDK(Callable cb, String scid) {
 
 	queue = XblGetAsyncQueue();
 
-	hr = XGameInviteRegisterForEvent(queue, this, &OnGameInviteReceived, &_invite_token);
-	if (CheckResult(hr, "Game invite event registered", "Failed to register game invite event")) {
-		_invite_registered = true;
+	for (std::function<void(Object*)> init_function : initialize_listeners) {
+		init_function(this);
 	}
-
-	hr = XUserRegisterForChangeEvent(queue, this, &UserChangeEventCallback, &_user_change_token);
-	CheckResult(hr, "User change event registered", "Failed to register user change event");
-
-	hr = XUserRegisterForDeviceAssociationChanged(queue, this, &DeviceAssociationChangeCallback, &_device_association_change_token);
-	CheckResult(hr, "Device association change event registered", "Failed to register device association change event");
-
-	hr = XUserRegisterForDefaultAudioEndpointUtf16Changed(queue, this, &DefaultAudioEndpointUtf16ChangeCallback, &_default_audio_endpoint_change_token);
-	CheckResult(hr, "Default audio endpoint change event registered", "Failed to register default audio endpoint change event");
 
 	hr = Identity_TrySignInDefaultUserSilently(queue, cb);
 	CheckResult(hr, "Login successfully started", "Failed to start login");
@@ -177,6 +196,15 @@ int GodotGDK::InitializeGDK(Callable cb, String scid) {
 	return hr;
 }
 
+void GodotGDK::xgame_invite_register_for_event(Object* node) {
+
+	HRESULT hr = XGameInviteRegisterForEvent(queue, node, &OnGameInviteReceived, &_invite_token);
+	CheckResult(hr, "Game invite event registered", "Failed to register game invite event");
+}
+
+void GodotGDK::xgame_invite_unregister_for_event() {
+	XGameInviteUnregisterForEvent(_invite_token, false);
+}
 
 HRESULT GodotGDK::Identity_TrySignInDefaultUserSilently(_In_ XTaskQueueHandle asyncQueue, Callable cb) {
 	XAsyncBlock* asyncBlock = new XAsyncBlock();
@@ -279,7 +307,7 @@ char* GodotGDK::CopyStringToChar(String string) {
 }
 
 static void OnGameInviteReceived(void* context, const char* inviteUri) {
-	GodotGDK* self = static_cast<GodotGDK*>(context);
+	Object* self = static_cast<Object*>(context);
 	self->call_deferred("emit_signal", "game_invite_received", String(inviteUri ? inviteUri : ""));
 }
 

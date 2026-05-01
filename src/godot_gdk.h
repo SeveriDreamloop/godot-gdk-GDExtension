@@ -11,7 +11,9 @@
 #include <XGame.h>
 #include <XGameInvite.h>
 
+#include <functional>
 #include <string>
+#include <vector>
 
 namespace godot {
 	class GDKXUserChangeEvent: public Object {
@@ -41,21 +43,26 @@ namespace godot {
 		static GodotGDK* _instance;
 		bool _initialized = false;
 		XTaskQueueHandle _async_queue = nullptr;
-		XTaskQueueRegistrationToken _invite_token = {};
-		XTaskQueueRegistrationToken _user_change_token = {};
-		XTaskQueueRegistrationToken _device_association_change_token = {};
-		XTaskQueueRegistrationToken _default_audio_endpoint_change_token = {};
+		static XTaskQueueRegistrationToken _invite_token;
+		static XTaskQueueRegistrationToken _user_change_token;
+		static XTaskQueueRegistrationToken _device_association_change_token;
+		static XTaskQueueRegistrationToken _default_audio_endpoint_change_token;
 
 		bool _invite_registered = false;
 
 		static HRESULT Identity_TrySignInDefaultUserSilently(XTaskQueueHandle asyncQueue, Callable cb);
 		static void Identity_TrySignInDefaultUserSilently_Callback(XAsyncBlock *asyncBlock);
+		static void xgame_invite_register_for_event(Object* node);
+		static void xgame_invite_unregister_for_event();
+
 	protected:
 		static void _bind_methods();
 		void _notification(int p_what);
 
 	public:
 		static GodotGDK* get_singleton();
+		static std::vector<std::function<void(Object*)>> initialize_listeners;
+		static std::vector<std::function<void()>> deinitialize_listeners;
 		GodotGDK() = default;
 		~GodotGDK() override = default;
 

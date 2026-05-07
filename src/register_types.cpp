@@ -23,11 +23,15 @@
 #include "gdk_gameui.h"
 #include "gdk_profile.h"
 #include "gdk_stringverify.h"
+#include "gdk_networking.h"
+#include "gdk_event_object.h"
 
 using namespace godot;
 
 static GodotGDK* gdk = nullptr;
 static GDKError* gdk_error = nullptr;
+static GDKNetworkingEvents* networking_events = nullptr;
+// static TypedArray<GDKEventObject> event_objects;
 
 void initialize_gdextension_types(ModuleInitializationLevel p_level)
 {
@@ -40,6 +44,16 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
+
+	GDREGISTER_ABSTRACT_CLASS(GDKEventObject);
+	GDREGISTER_CLASS(GDKXNetworkingThumbprint);
+	GDREGISTER_CLASS(GDKXNetworkingSecurityInformation);
+	GDREGISTER_CLASS(GDKXNetworkingConnectivityLevelHint);
+	GDREGISTER_CLASS(GDKXNetworkingConnectivityCostHint);
+	GDREGISTER_CLASS(GDKXNetworkingConfigurationSetting);
+	GDREGISTER_CLASS(GDKXNetworkingStatisticsType);
+	GDREGISTER_CLASS(GDKNetworking);
+	GDREGISTER_CLASS(GDKNetworkingEvents);
 	GDREGISTER_CLASS(GDKPackage);
 	GDREGISTER_CLASS(GDKStore);
 	
@@ -78,6 +92,13 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 
 	gdk = GodotGDK::get_singleton();
 	Engine::get_singleton()->register_singleton("GDK", gdk);
+
+	TypedArray<GDKEventObject> event_objects;
+	networking_events = GDKNetworkingEvents::get_singleton();
+	Engine::get_singleton()->register_singleton(networking_events->get_singleton_name(), networking_events);
+	// event_objects.push_back(networking_events);
+
+	// gdk->set_event_objects(event_objects);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
@@ -89,6 +110,16 @@ void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
 
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
+	}
+
+	const TypedArray<Ref<GDKEventObject>> event_objects{
+		networking_events
+	};
+
+	for (int i = 0; i < event_objects.size(); i++) {
+		Ref<GDKEventObject> obj = event_objects[i];
+		Engine::get_singleton()->unregister_singleton(obj->get_singleton_name());
+		memdelete(obj.ptr());
 	}
 
 	Engine::get_singleton()->unregister_singleton("GDK");

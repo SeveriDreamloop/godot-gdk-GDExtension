@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include "gdk_networking.h"
 
 static XTaskQueueHandle queue;
 static XUserLocalId xboxUserId;
@@ -71,6 +72,7 @@ void GodotGDK::_notification(int p_what) {
 				_invite_registered = false;
 			}
 
+			_event_objects.clear();
 			XUserUnregisterForChangeEvent(_user_change_token, false);
 			XUserUnregisterForDeviceAssociationChanged(_device_association_change_token, false);
 			XUserUnregisterForDefaultAudioEndpointUtf16Changed(_default_audio_endpoint_change_token, false);
@@ -199,6 +201,11 @@ int GodotGDK::InitializeGDK(Callable cb, String scid) {
 
 	hr = XPackageRegisterPackageInstalled(queue, this, &PackageInstalledCallback, &_package_installed_token);
 	CheckResult(hr, "Package installed event registered", "Failed to register package installed event");
+	
+	for (int i = 0; i < _event_objects.size(); i++) {
+		Ref<GDKEventObject> obj = _event_objects[i];
+		obj->initialize();
+	}
 
 	hr = Identity_TrySignInDefaultUserSilently(queue, cb);
 	CheckResult(hr, "Login successfully started", "Failed to start login");
@@ -332,3 +339,6 @@ int64_t GodotGDK::launch_restart_on_crash(const String &args) {
 	return (int64_t)hr;
 }
 
+void GodotGDK::set_event_objects(TypedArray<GDKEventObject> in_objects) {
+	_event_objects = in_objects;
+}

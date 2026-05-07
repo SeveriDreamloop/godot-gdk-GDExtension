@@ -23,6 +23,7 @@
 #include "gdk_gameui.h"
 #include "gdk_profile.h"
 #include "gdk_stringverify.h"
+#include "gdk_events.h"
 
 using namespace godot;
 
@@ -40,9 +41,10 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
-	GDREGISTER_CLASS(GDKPackage);
+
+	GDREGISTER_CLASS(GDKEvents);
 	GDREGISTER_CLASS(GDKStore);
-	
+	GDREGISTER_CLASS(GDKPackage);
 	GDREGISTER_CLASS(GDKGameUI);
 	GDREGISTER_CLASS(GDKProfile);
 	GDREGISTER_CLASS(GDKXblStringVerifyResult);

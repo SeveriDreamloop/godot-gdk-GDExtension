@@ -23,6 +23,7 @@
 #include "gdk_gameui.h"
 #include "gdk_profile.h"
 #include "gdk_stringverify.h"
+#include "gdk_leaderboard.h"
 
 using namespace godot;
 
@@ -43,6 +44,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	GDREGISTER_CLASS(GDKPackage);
 	GDREGISTER_CLASS(GDKStore);
 	
+
+	GDREGISTER_CLASS(GDKLeaderboard);
 	GDREGISTER_CLASS(GDKGameUI);
 	GDREGISTER_CLASS(GDKProfile);
 	GDREGISTER_CLASS(GDKXblStringVerifyResult);

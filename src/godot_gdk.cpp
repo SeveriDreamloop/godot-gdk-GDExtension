@@ -30,9 +30,6 @@ GodotGDK* GodotGDK::_instance = nullptr;
 std::vector< std::function<void(Object*)>> GodotGDK::initialize_listeners;
 std::vector< std::function<void()>> GodotGDK::deinitialize_listeners;
 XTaskQueueRegistrationToken GodotGDK::_invite_token;
-XTaskQueueRegistrationToken GodotGDK::_user_change_token;
-XTaskQueueRegistrationToken GodotGDK::_device_association_change_token;
-XTaskQueueRegistrationToken GodotGDK::_default_audio_endpoint_change_token;
 
 void GDKXUserChangeEvent::_bind_methods() {
 	BIND_ENUM_CONSTANT(SignedInAgain);
@@ -41,58 +38,6 @@ void GDKXUserChangeEvent::_bind_methods() {
 	BIND_ENUM_CONSTANT(Gamertag);
 	BIND_ENUM_CONSTANT(GamerPicture);
 	BIND_ENUM_CONSTANT(Privileges);
-}
-
-void UserChangeEventCallback(void* context, XUserLocalId userLocalId, XUserChangeEvent event) {
-	XUserHandle userHandle;
-
-	HRESULT hr = XUserFindUserByLocalId(userLocalId, &userHandle);
-	ERR_FAIL_COND_MSG(FAILED(hr), vformat("UserChangeEvent Error: 0x%08ux", (uint64_t)hr));
-
-	Ref<GDKUser> user = GDKUser::create(userHandle);
-	GDKXUserChangeEvent::Enum event_enum = static_cast<GDKXUserChangeEvent::Enum>(event);
-
-	Object* self = static_cast<Object*>(context);
-	self->call_deferred("emit_signal", "user_changed", user, event_enum);
-}
-
-void DeviceAssociationChangeCallback(void* context, const XUserDeviceAssociationChange* change) {
-	PackedByteArray device_id;
-	device_id.resize(sizeof(APP_LOCAL_DEVICE_ID));
-	memcpy(device_id.ptrw(), &change->deviceId, sizeof(APP_LOCAL_DEVICE_ID));
-
-	HRESULT hr = S_OK;
-	Ref<GDKUser> oldUser = nullptr;
-	if (change->oldUser.value != 0) {
-		XUserHandle oldUserHandle;
-		hr = XUserFindUserByLocalId(change->oldUser, &oldUserHandle);
-		ERR_FAIL_COND_MSG(FAILED(hr) && change->oldUser.value != 0, vformat("DeviceAssociationChange FindUserByLocalId(OldUser) Error: 0x%08ux", (uint64_t)hr));
-		oldUser = GDKUser::create(oldUserHandle);
-	}
-
-	Ref<GDKUser> newUser = nullptr;
-	if (change->newUser.value != 0) {
-		XUserHandle newUserHandle;
-		hr = XUserFindUserByLocalId(change->newUser, &newUserHandle);
-		ERR_FAIL_COND_MSG(FAILED(hr) && change->newUser.value != 0, vformat("DeviceAssociationChange FindUserByLocalId(NewUser) Error: 0x%08ux", (uint64_t)hr));
-		newUser = GDKUser::create(newUserHandle);
-	}
-
-	Object* self = static_cast<Object*>(context);
-	self->call_deferred("emit_signal", "device_association_changed", device_id, oldUser, newUser);
-}
-
-void DefaultAudioEndpointUtf16ChangeCallback(void* context, XUserLocalId userLocalId, XUserDefaultAudioEndpointKind endpointKind, const wchar_t* endpointIdUtf16)
-{
-	XUserHandle userHandle;
-	HRESULT hr = XUserFindUserByLocalId(userLocalId, &userHandle);
-	ERR_FAIL_COND_MSG(FAILED(hr), vformat("DefaultAudioEndpointUtf16ChangeCallback FindUserByLocalId Error: 0x%08ux", (uint64_t)hr));
-
-	GDKXUserDefaultAudioEndpointKind::Enum endpoint_enum = static_cast<GDKXUserDefaultAudioEndpointKind::Enum>(endpointKind);
-	String endpoint_id = String(endpointIdUtf16);
-
-	Object* self = static_cast<Object*>(context);
-	self->call_deferred("emit_signal", "default_audio_endpoint_utf16_changed", GDKUser::create(userHandle), endpoint_enum, endpoint_id);
 }
 
 void GodotGDK::_bind_methods() {
@@ -117,30 +62,6 @@ void GodotGDK::_bind_methods() {
 
 	initialize_listeners.push_back(xgame_invite_register_for_event);
 	deinitialize_listeners.push_back(xgame_invite_unregister_for_event);
-
-	initialize_listeners.push_back([](Object* node) {
-		HRESULT hr = XUserRegisterForChangeEvent(queue, node, &UserChangeEventCallback, &_user_change_token);
-		CheckResult(hr, "User change event registered", "Failed to register user change event");
-	});
-	deinitialize_listeners.push_back([] {
-		XUserUnregisterForChangeEvent(_user_change_token, false);
-	});
-
-	initialize_listeners.push_back([](Object* node) {
-		HRESULT hr = XUserRegisterForDeviceAssociationChanged(queue, node, &DeviceAssociationChangeCallback, &_device_association_change_token);
-		CheckResult(hr, "Device association change event registered", "Failed to register device association change event");
-	});
-	deinitialize_listeners.push_back([] {
-			XUserUnregisterForDeviceAssociationChanged(_device_association_change_token, false);
-	});
-
-	initialize_listeners.push_back([](Object* node) {
-		HRESULT hr = XUserRegisterForDefaultAudioEndpointUtf16Changed(queue, node, &DefaultAudioEndpointUtf16ChangeCallback, &_default_audio_endpoint_change_token);
-		CheckResult(hr, "Default audio endpoint change event registered", "Failed to register default audio endpoint change event");
-	});
-	deinitialize_listeners.push_back([] {
-			XUserUnregisterForDefaultAudioEndpointUtf16Changed(_default_audio_endpoint_change_token, false);
-	});
 }
 
 void GodotGDK::_notification(int p_what) {

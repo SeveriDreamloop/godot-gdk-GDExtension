@@ -1,6 +1,8 @@
 #include "gdk_user.h"
 #include "gdk_helpers.h"
 #include "gdk_asyncblock.h"
+#include "godot_gdk.h"
+
 #include <classes/image.hpp>
 #include <xsapi-c/xbox_live_context_c.h>
 
@@ -82,6 +84,63 @@ void GDKXUserDefaultAudioEndpointKind::_bind_methods() {
     BIND_ENUM_CONSTANT(CommunicationCapture);
 }
 
+
+XTaskQueueRegistrationToken GDKUser::_user_change_token;
+XTaskQueueRegistrationToken GDKUser::_device_association_change_token;
+XTaskQueueRegistrationToken GDKUser::_default_audio_endpoint_change_token;
+
+void UserChangeEventCallback(void* context, XUserLocalId userLocalId, XUserChangeEvent event) {
+	XUserHandle userHandle;
+
+	HRESULT hr = XUserFindUserByLocalId(userLocalId, &userHandle);
+	ERR_FAIL_COND_MSG(FAILED(hr), vformat("UserChangeEvent Error: 0x%08ux", (uint64_t)hr));
+
+	Ref<GDKUser> user = GDKUser::create(userHandle);
+	GDKXUserChangeEvent::Enum event_enum = static_cast<GDKXUserChangeEvent::Enum>(event);
+
+	Object* self = static_cast<Object*>(context);
+	self->call_deferred("emit_signal", "user_changed", user, event_enum);
+}
+
+void DeviceAssociationChangeCallback(void* context, const XUserDeviceAssociationChange* change) {
+	PackedByteArray device_id;
+	device_id.resize(sizeof(APP_LOCAL_DEVICE_ID));
+	memcpy(device_id.ptrw(), &change->deviceId, sizeof(APP_LOCAL_DEVICE_ID));
+
+	HRESULT hr = S_OK;
+	Ref<GDKUser> oldUser = nullptr;
+	if (change->oldUser.value != 0) {
+		XUserHandle oldUserHandle;
+		hr = XUserFindUserByLocalId(change->oldUser, &oldUserHandle);
+		ERR_FAIL_COND_MSG(FAILED(hr) && change->oldUser.value != 0, vformat("DeviceAssociationChange FindUserByLocalId(OldUser) Error: 0x%08ux", (uint64_t)hr));
+		oldUser = GDKUser::create(oldUserHandle);
+	}
+
+	Ref<GDKUser> newUser = nullptr;
+	if (change->newUser.value != 0) {
+		XUserHandle newUserHandle;
+		hr = XUserFindUserByLocalId(change->newUser, &newUserHandle);
+		ERR_FAIL_COND_MSG(FAILED(hr) && change->newUser.value != 0, vformat("DeviceAssociationChange FindUserByLocalId(NewUser) Error: 0x%08ux", (uint64_t)hr));
+		newUser = GDKUser::create(newUserHandle);
+	}
+
+	Object* self = static_cast<Object*>(context);
+	self->call_deferred("emit_signal", "device_association_changed", device_id, oldUser, newUser);
+}
+
+void DefaultAudioEndpointUtf16ChangeCallback(void* context, XUserLocalId userLocalId, XUserDefaultAudioEndpointKind endpointKind, const wchar_t* endpointIdUtf16)
+{
+	XUserHandle userHandle;
+	HRESULT hr = XUserFindUserByLocalId(userLocalId, &userHandle);
+	ERR_FAIL_COND_MSG(FAILED(hr), vformat("DefaultAudioEndpointUtf16ChangeCallback FindUserByLocalId Error: 0x%08ux", (uint64_t)hr));
+
+	GDKXUserDefaultAudioEndpointKind::Enum endpoint_enum = static_cast<GDKXUserDefaultAudioEndpointKind::Enum>(endpointKind);
+	String endpoint_id = String(endpointIdUtf16);
+
+	Object* self = static_cast<Object*>(context);
+	self->call_deferred("emit_signal", "default_audio_endpoint_utf16_changed", GDKUser::create(userHandle), endpoint_enum, endpoint_id);
+}
+
 void GDKUser::_bind_methods() {
     ClassDB::bind_static_method("GDKUser", D_METHOD("add_user_async", "options"), &GDKUser::add_user_async);
     ClassDB::bind_static_method("GDKUser", D_METHOD("add_user_by_id_with_ui_async", "user_id"), &GDKUser::add_user_by_id_with_ui_async);
@@ -109,6 +168,30 @@ void GDKUser::_bind_methods() {
     ClassDB::bind_method(D_METHOD("close_sign_out_deferral_handle", "handle"), &GDKUser::close_sign_out_deferral_handle);
     ClassDB::bind_method(D_METHOD("find_controller_for_user_with_ui_async"), &GDKUser::find_controller_for_user_with_ui_async);
     ClassDB::bind_method(D_METHOD("is_store_user"), &GDKUser::is_store_user);
+
+    GodotGDK::initialize_listeners.push_back([](Object* node) {
+		HRESULT hr = XUserRegisterForChangeEvent(GDKHelpers::get_async_queue(), node, &UserChangeEventCallback, &_user_change_token);
+		GodotGDK::CheckResult(hr, "User change event registered", "Failed to register user change event");
+	});
+	GodotGDK::deinitialize_listeners.push_back([] {
+		XUserUnregisterForChangeEvent(_user_change_token, false);
+	});
+
+	GodotGDK::initialize_listeners.push_back([](Object* node) {
+		HRESULT hr = XUserRegisterForDeviceAssociationChanged(GDKHelpers::get_async_queue(), node, &DeviceAssociationChangeCallback, &_device_association_change_token);
+		GodotGDK::CheckResult(hr, "Device association change event registered", "Failed to register device association change event");
+	});
+	GodotGDK::deinitialize_listeners.push_back([] {
+			XUserUnregisterForDeviceAssociationChanged(_device_association_change_token, false);
+	});
+
+	GodotGDK::initialize_listeners.push_back([](Object* node) {
+		HRESULT hr = XUserRegisterForDefaultAudioEndpointUtf16Changed(GDKHelpers::get_async_queue(), node, &DefaultAudioEndpointUtf16ChangeCallback, &_default_audio_endpoint_change_token);
+		GodotGDK::CheckResult(hr, "Default audio endpoint change event registered", "Failed to register default audio endpoint change event");
+	});
+	GodotGDK::deinitialize_listeners.push_back([] {
+			XUserUnregisterForDefaultAudioEndpointUtf16Changed(_default_audio_endpoint_change_token, false);
+	});
 }
 
 Ref<GDKUser> GDKUser::create(XUserHandle user) {

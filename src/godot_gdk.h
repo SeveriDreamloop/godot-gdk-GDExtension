@@ -44,9 +44,6 @@ namespace godot {
 		bool _initialized = false;
 		XTaskQueueHandle _async_queue = nullptr;
 		static XTaskQueueRegistrationToken _invite_token;
-		static XTaskQueueRegistrationToken _user_change_token;
-		static XTaskQueueRegistrationToken _device_association_change_token;
-		static XTaskQueueRegistrationToken _default_audio_endpoint_change_token;
 
 		bool _invite_registered = false;
 

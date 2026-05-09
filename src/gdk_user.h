@@ -176,6 +176,9 @@ class GDKUser : public RefCounted {
 private:
     XUserHandle _user = nullptr;
     XblContextHandle _xbl_context = nullptr;
+	static XTaskQueueRegistrationToken _user_change_token;
+	static XTaskQueueRegistrationToken _device_association_change_token;
+	static XTaskQueueRegistrationToken _default_audio_endpoint_change_token;
 
 protected:
     static void _bind_methods();

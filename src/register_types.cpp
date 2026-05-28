@@ -13,6 +13,7 @@
 #include "gdk_game_save.h"
 #include "gdk_game_save_blob.h"
 #include "gdk_user.h"
+#include "gdk_presence.h"
 
 using namespace godot;
 
@@ -44,6 +45,15 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	GDREGISTER_CLASS(GDKXUserGetTokenAndSignatureData);
 	GDREGISTER_CLASS(GDKXUserSignOutDeferralHandle);
 	GDREGISTER_CLASS(GDKUser);
+	GDREGISTER_CLASS(GDKPresence);
+	GDREGISTER_CLASS(GDKPresenceRecord);
+	GDREGISTER_CLASS(GDKPresenceDeviceRecord);
+	GDREGISTER_CLASS(GDKPresenceTitleRecord);
+	GDREGISTER_CLASS(GDKXblPresenceUserState);
+	GDREGISTER_CLASS(GDKXblPresenceDeviceType);
+	GDREGISTER_CLASS(GDKXblPresenceTitleState);
+	GDREGISTER_CLASS(GDKXblPresenceFilter);
+	GDREGISTER_CLASS(GDKXblPresenceDetailLevel);
 
 	gdk = GodotGDK::get_singleton();
 	Engine::get_singleton()->register_singleton("GDK", gdk);

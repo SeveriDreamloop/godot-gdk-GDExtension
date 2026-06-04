@@ -7,7 +7,10 @@ from methods import print_error
 
 target_path = ARGUMENTS.pop("target_path", "demo/addons/GDK/libs/")
 libname = ARGUMENTS.pop("libname", "GDK")
-gdk_dir = r"C:/Program Files (x86)/Microsoft GDK/251001/"
+gdk_dir = ARGUMENTS.pop("gdk_path", os.environ.get("GameDKCoreLatest"))
+if (not os.path.exists(gdk_dir)):
+    print_error("GDK isn't present. Are you sure you installed GDK? https://github.com/microsoft/GDK#installation".format(gdk_dir=gdk_dir))
+    exit(1)
 
 source_path = [
     os.path.join("godot-cpp", "include", "godot_cpp"),
